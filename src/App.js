@@ -1,267 +1,196 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Search, Plus, Trash2, Edit2, Save, User } from 'lucide-react';
+import axios from 'axios';
 
 const Truecaller = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [contactName, setContactName] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchPhoneNumber, setSearchPhoneNumber] = useState('');
   const [searchResult, setSearchResult] = useState(null);
-  const [contacts, setContacts] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [editName, setEditName] = useState('');
-  const [activeTab, setActiveTab] = useState('add');
+  const [allContacts, setAllContacts] = useState([]);
+  const [deletePhoneNumber, setDeletePhoneNumber] = useState('');
 
-  useEffect(() => {
-    const savedContacts = localStorage.getItem('contacts');
-    if (savedContacts) {
-      setContacts(JSON.parse(savedContacts));
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('contacts', JSON.stringify(contacts));
-  }, [contacts]);
-
-  const handleAddContact = () => {
+  // Function to handle adding a contact
+  const handleAddContact = async () => {
     if (!phoneNumber || !contactName) {
-      alert('Please fill in both fields');
+      alert('Please provide both phone number and contact name');
       return;
     }
-
-    const newContact = {
-      id: Date.now(),
-      phone: phoneNumber,
-      name: contactName,
-      timestamp: new Date().toISOString()
-    };
-
-    setContacts(prev => [...prev, newContact]);
-    setPhoneNumber('');
-    setContactName('');
-  };
-
-  const handleSearch = () => {
-    const result = contacts.find(
-      contact => contact.phone.includes(searchQuery) || 
-                contact.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setSearchResult(result || null);
-  };
-
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this contact?')) {
-      setContacts(prev => prev.filter(contact => contact.id !== id));
+    try {
+      const response = await axios.post('http://localhost:3000/contacts', {
+        phoneNumber,
+        contactName,
+      });
+      alert(response.data.message);
+      setPhoneNumber('');
+      setContactName('');
+    } catch (error) {
+      console.error('Error adding contact:', error);
+      alert('Failed to add contact');
     }
   };
 
-  const handleEdit = (contact) => {
-    setEditingId(contact.id);
-    setEditName(contact.name);
+  // Function to handle searching a contact
+  const handleSearchContact = async () => {
+    if (!searchPhoneNumber) {
+      alert('Please provide a phone number to search');
+      return;
+    }
+    try {
+      const response = await axios.get(`http://localhost:3000/contacts/${searchPhoneNumber}`);
+      setSearchResult(response.data.contactName);
+    } catch (error) {
+      console.error('Error searching contact:', error);
+      alert('Failed to search for contact');
+    }
   };
 
-  const handleSave = (id) => {
-    setContacts(prev => prev.map(contact => 
-      contact.id === id ? { ...contact, name: editName } : contact
-    ));
-    setEditingId(null);
+  // Fetch all contacts when the component mounts
+  useEffect(() => {
+    const fetchAllContacts = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/contacts');
+        setAllContacts(response.data);
+      } catch (error) {
+        console.error('Error fetching all contacts:', error);
+        alert('Error fetching all contacts');
+      }
+    };
+    fetchAllContacts();
+  }, []);
+
+  // Function to handle showing all contacts
+  const handleViewAllContacts = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/contacts');
+      setAllContacts(response.data);
+    } catch (error) {
+      console.error('Error fetching all contacts:', error);
+      alert('Error fetching all contacts');
+    }
+  };
+
+  // Function to handle deleting a contact
+  const handleDeleteContact = async () => {
+    if (!deletePhoneNumber) {
+      alert('Please provide a phone number to delete');
+      return;
+    }
+    try {
+      const response = await axios.delete(`http://localhost:3000/contacts/${deletePhoneNumber}`);
+      alert(response.data.message);
+      setDeletePhoneNumber('');
+      handleViewAllContacts(); // Refresh contacts after deletion
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      alert('Failed to delete contact');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
-          <h1 className="text-2xl font-bold text-white flex items-center justify-center gap-3">
-            <Phone className="w-6 h-6" />
-            Truecaller
-          </h1>
+    <div className="container mx-auto p-6 max-w-lg bg-gray-100 rounded-lg shadow-md">
+      <h1 className="text-center text-3xl text-gray-700 mb-6">Truecaller App</h1>
+
+      {/* Add Contact */}
+      <section className="mb-8">
+        <h2 className="text-xl text-gray-600 mb-4">Add Contact</h2>
+        <div className="flex flex-col gap-4">
+          <input
+            type="text"
+            placeholder="Phone Number"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md text-lg"
+          />
+          <input
+            type="text"
+            placeholder="Contact Name"
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md text-lg"
+          />
         </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200">
-          {['add', 'search', 'list'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-4 px-6 text-sm font-medium transition-colors duration-200
-                ${activeTab === tab 
-                  ? 'text-blue-600 border-b-2 border-blue-600' 
-                  : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
+        <div className="flex justify-center">
+          <button
+            onClick={handleAddContact}
+            className="w-full max-w-xs mx-auto mt-4 py-3 bg-green-500 text-white rounded-md text-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-600"
+          >
+            Add Contact
+          </button>
         </div>
+      </section>
 
-        {/* Content */}
-        <div className="p-6">
-          {activeTab === 'add' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter phone number"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contact Name
-                </label>
-                <input
-                  type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter contact name"
-                />
-              </div>
-              <button
-                onClick={handleAddContact}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Add Contact
-              </button>
-            </div>
-          )}
-
-          {activeTab === 'search' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Search Contacts
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Search by name or number"
-                  />
-                  <button
-                    onClick={handleSearch}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2"
-                  >
-                    <Search className="w-4 h-4" /> Search
-                  </button>
-                </div>
-              </div>
-              {searchResult && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-600 text-white p-2 rounded-full">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{searchResult.name}</p>
-                      <p className="text-sm text-gray-500">{searchResult.phone}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'list' && (
-            <div className="space-y-3">
-              {contacts.map(contact => (
-                <div 
-                  key={contact.id}
-                  className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-blue-100 text-blue-600 p-2 rounded-full">
-                        <User className="w-4 h-4" />
-                      </div>
-                      <div>
-                        {editingId === contact.id ? (
-                          <input
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        ) : (
-                          <p className="font-medium text-gray-900">{contact.name}</p>
-                        )}
-                        <p className="text-sm text-gray-500">{contact.phone}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {editingId === contact.id ? (
-                        <button
-                          onClick={() => handleSave(contact.id)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors duration-200"
-                        >
-                          <Save className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleEdit(contact)}
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(contact.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors duration-200"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {contacts.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No contacts added yet
-                </div>
-              )}
-            </div>
-          )}
+      {/* Search Contact */}
+      <section className="mb-8">
+        <h2 className="text-xl text-gray-600 mb-4">Search Contact</h2>
+        <input
+          type="text"
+          placeholder="Phone Number"
+          value={searchPhoneNumber}
+          onChange={(e) => setSearchPhoneNumber(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-md text-lg w-full mb-4"
+        />
+        <div className="flex justify-center">
+          <button
+            onClick={handleSearchContact}
+            className="w-full max-w-xs mx-auto py-3 bg-blue-500 text-white rounded-md text-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          >
+            Search
+          </button>
         </div>
-      </div>
+        {searchResult !== null && (
+          <p className="mt-4 text-xl text-gray-700">
+            {searchResult !== 'Number not found'
+              ? `Contact Name: ${searchResult}`
+              : 'Contact not found'}
+          </p>
+        )}
+      </section>
+
+      {/* View All Contacts */}
+      <section className="mb-8">
+        <h2 className="text-xl text-gray-600 mb-4">All Contacts</h2>
+        <div className="flex justify-center">
+          <button
+            onClick={handleViewAllContacts}
+            className="w-full max-w-xs mx-auto py-3 bg-purple-500 text-white rounded-md text-lg hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-600"
+          >
+            View All Contacts
+          </button>
+        </div>
+        <ul className="mt-4 text-lg text-gray-700">
+          {allContacts.length > 0 ? (
+            allContacts.map((contact, index) => (
+              <li key={index}>
+                {contact.phoneNumber}: {contact.contactName}
+              </li>
+            ))
+          ) : (
+            <p>No contacts found</p>
+          )}
+        </ul>
+      </section>
+
+      {/* Delete Contact */}
+      <section className="mb-8">
+        <h2 className="text-xl text-gray-600 mb-4">Delete Contact</h2>
+        <input
+          type="text"
+          placeholder="Phone Number"
+          value={deletePhoneNumber}
+          onChange={(e) => setDeletePhoneNumber(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-md text-lg w-full mb-4"
+        />
+        <div className="flex justify-center">
+          <button
+            onClick={handleDeleteContact}
+            className="w-full max-w-xs mx-auto py-3 bg-red-500 text-white rounded-md text-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-600"
+          >
+            Delete Contact
+          </button>
+        </div>
+      </section>
     </div>
   );
 };
 
 export default Truecaller;
-
-// import React from 'react';
-// import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
-// import Register from './components/Auth/Register';
-// import AddContact from './components/Contacts/AddContact';
-// import CallHistory from './components/CallHistory'; 
-// import Favourites from './components/Favorites';
-
-// const App = () => {
-//   return (
-//     <Router>
-//       <div>
-//         <nav>
-//           <ul>
-//             <li><Link to="/register">Register</Link></li>
-//             <li><Link to="/add-contact">Add Contact</Link></li>
-//             <li><Link to="/call-history">Call History</Link></li>
-//             <li><Link to="/favourites">Favourites</Link></li>
-//           </ul>
-//         </nav>
-//         <Routes>
-//           <Route path="/register" element={<Register />} />
-//           <Route path="/add-contact" element={<AddContact />} />
-//           <Route path="/call-history" element={<CallHistory />} />
-//           <Route path="/favourites" element={<Favourites />} />
-//         </Routes>
-//       </div>
-//     </Router>
-//   );
-// };
-
-// export default App;
